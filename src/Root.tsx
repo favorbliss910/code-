@@ -2,6 +2,7 @@ import { Composition, Folder } from "remotion";
 import { HelloWorld } from "./HelloWorld";
 import { Logo } from "./HelloWorld/Logo";
 import { Title } from "./HelloWorld/Title";
+import { SAAS_EXPLAINER_DURATION, SaasExplainer } from "./SaasExplainer";
 import { THUMBNAIL_PROMO_DURATION, ThumbnailPromo } from "./ThumbnailPromo";
 
 // Each <Composition> is an entry in the sidebar!
@@ -67,6 +68,14 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1080}
         height={1920}
+      />
+      <Composition
+        id="SaasExplainer"
+        component={SaasExplainer}
+        durationInFrames={SAAS_EXPLAINER_DURATION}
+        fps={30}
+        width={1920}
+        height={1080}
       />
     </>
   );
