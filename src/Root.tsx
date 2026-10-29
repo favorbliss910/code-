@@ -59,6 +59,15 @@ export const RemotionRoot: React.FC = () => {
         width={1920}
         height={1080}
       />
+      <Composition
+        // 9:16 version for TikTok, Reels and Shorts
+        id="ThumbnailPromoVertical"
+        component={ThumbnailPromo}
+        durationInFrames={THUMBNAIL_PROMO_DURATION}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
     </>
   );
 };

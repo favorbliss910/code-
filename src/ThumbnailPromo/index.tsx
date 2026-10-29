@@ -32,6 +32,16 @@ export const THUMBNAIL_PROMO_DURATION = Object.values(SCENES).reduce(
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
+// True for the 9:16 TikTok / Reels / Shorts version.
+const useVertical = () => {
+  const { width, height } = useVideoConfig();
+  return height > width;
+};
+
+// Vertical frames keep content out of the areas TikTok covers with its
+// caption (bottom) and buttons (right edge).
+const verticalSafe = { padding: "160px 90px 300px" } as const;
+
 const useEnter = (delay = 0) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -87,6 +97,7 @@ const Label: React.FC<{ readonly text: string; readonly color: string }> = ({
 // A feed of plain thumbnails scrolling past, all blending together.
 const Feed: React.FC = () => {
   const frame = useCurrentFrame();
+  const columns = useVertical() ? [0, 1] : [0, 1, 2, 3];
   const shades = ["#3A3A44", "#45454F", "#33333C", "#4C4C56"];
   return (
     <AbsoluteFill
@@ -98,7 +109,7 @@ const Feed: React.FC = () => {
         filter: "blur(2px)",
       }}
     >
-      {[0, 1, 2, 3].map((col) => (
+      {columns.map((col) => (
         <div
           key={col}
           style={{
@@ -109,7 +120,7 @@ const Feed: React.FC = () => {
             transform: `translateY(${-((frame * (6 + col)) % 420) - col * 120}px)`,
           }}
         >
-          {new Array(6).fill(0).map((_, i) => (
+          {new Array(8).fill(0).map((_, i) => (
             <div key={i}>
               <div
                 style={{
@@ -135,62 +146,103 @@ const Feed: React.FC = () => {
   );
 };
 
-const Hook: React.FC = () => (
-  <AbsoluteFill style={{ background: BG }}>
-    <Feed />
-    <AbsoluteFill
-      style={{
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 30,
-        background:
-          "radial-gradient(circle, rgba(11,11,18,0.85) 30%, rgba(11,11,18,0.3) 80%)",
-      }}
-    >
-      <Line size={96}>Your video could be amazing…</Line>
-      <Line delay={70} size={72} color="#C9C9D6">
-        but if the thumbnail doesn’t stop the scroll,
-      </Line>
-      <Line delay={115} size={130} color={PINK} font={anton}>
-        NOBODY CLICKS.
-      </Line>
+const Hook: React.FC = () => {
+  const vertical = useVertical();
+  return (
+    <AbsoluteFill style={{ background: BG }}>
+      <Feed />
+      <AbsoluteFill
+        style={{
+          ...(vertical ? verticalSafe : {}),
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 30,
+          background:
+            "radial-gradient(circle, rgba(11,11,18,0.85) 30%, rgba(11,11,18,0.3) 80%)",
+        }}
+      >
+        <Line size={96}>Your video could be amazing…</Line>
+        <Line delay={70} size={72} color="#C9C9D6">
+          but if the thumbnail doesn’t stop the scroll,
+        </Line>
+        <Line delay={115} size={vertical ? 170 : 130} color={PINK} font={anton}>
+          NOBODY CLICKS.
+        </Line>
+      </AbsoluteFill>
     </AbsoluteFill>
-  </AbsoluteFill>
-);
+  );
+};
 
-const Plain: React.FC = () => {
-  const enter = useEnter(0);
+// Caption above, thumbnail in the middle, label below. Landscape pins the
+// caption and label to the frame edges; vertical stacks all three.
+const Stage: React.FC<{
+  readonly top: React.ReactNode;
+  readonly middle: React.ReactNode;
+  readonly bottom: React.ReactNode;
+}> = ({ top, middle, bottom }) => {
+  if (useVertical()) {
+    return (
+      <AbsoluteFill
+        style={{
+          ...verticalSafe,
+          background: BG,
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 80,
+        }}
+      >
+        {top}
+        {middle}
+        {bottom}
+      </AbsoluteFill>
+    );
+  }
   return (
     <AbsoluteFill
       style={{ background: BG, justifyContent: "center", alignItems: "center" }}
     >
-      <div style={{ position: "absolute", top: 70 }}>
-        <Line size={72}>So watch this.</Line>
-      </div>
-      <div style={{ transform: `scale(${0.8 + enter * 0.2})`, opacity: enter }}>
-        <Thumbnail
-          subject="person"
-          boldness={0}
-          headline="Watch this now"
-          width={1100}
-        />
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          bottom: 70,
-          display: "flex",
-          gap: 60,
-        }}
-      >
-        <Line delay={35} size={56} color="#9A9AAA">
-          Plain subject…
-        </Line>
-        <Line delay={70} size={56} color="#9A9AAA">
-          plain background…
-        </Line>
-      </div>
+      <div style={{ position: "absolute", top: 70 }}>{top}</div>
+      {middle}
+      <div style={{ position: "absolute", bottom: 75 }}>{bottom}</div>
     </AbsoluteFill>
+  );
+};
+
+const Plain: React.FC = () => {
+  const enter = useEnter(0);
+  const vertical = useVertical();
+  return (
+    <Stage
+      top={<Line size={vertical ? 96 : 72}>So watch this.</Line>}
+      middle={
+        <div
+          style={{ transform: `scale(${0.8 + enter * 0.2})`, opacity: enter }}
+        >
+          <Thumbnail
+            subject="person"
+            boldness={0}
+            headline="Watch this now"
+            width={vertical ? 900 : 1100}
+          />
+        </div>
+      }
+      bottom={
+        <div
+          style={{
+            display: "flex",
+            flexDirection: vertical ? "column" : "row",
+            gap: vertical ? 20 : 60,
+          }}
+        >
+          <Line delay={35} size={vertical ? 64 : 56} color="#9A9AAA">
+            Plain subject…
+          </Line>
+          <Line delay={70} size={vertical ? 64 : 56} color="#9A9AAA">
+            plain background…
+          </Line>
+        </div>
+      }
+    />
   );
 };
 
@@ -202,6 +254,7 @@ const Makeover: React.FC<{
   readonly startsBold: number;
 }> = ({ subject, headline, caption, startsBold }) => {
   const frame = useCurrentFrame();
+  const vertical = useVertical();
   const { fps } = useVideoConfig();
   const pop = spring({
     frame: frame - startsBold,
@@ -221,26 +274,26 @@ const Makeover: React.FC<{
     clamp,
   );
   return (
-    <AbsoluteFill
-      style={{ background: BG, justifyContent: "center", alignItems: "center" }}
-    >
-      <div style={{ position: "absolute", top: 70 }}>
-        <Line size={72}>{caption}</Line>
-      </div>
-      <div style={{ transform: `scale(${1 + pop * 0.08})` }}>
-        <Thumbnail
-          subject={subject}
-          boldness={boldness}
-          headline={headline}
-          width={1100}
-        />
-      </div>
-      <div style={{ position: "absolute", bottom: 80 }}>
-        <Label
-          text={boldness < 0.5 ? "BEFORE" : "AFTER"}
-          color={boldness < 0.5 ? "#9A9AAA" : YELLOW}
-        />
-      </div>
+    <AbsoluteFill>
+      <Stage
+        top={<Line size={vertical ? 96 : 72}>{caption}</Line>}
+        middle={
+          <div style={{ transform: `scale(${1 + pop * 0.08})` }}>
+            <Thumbnail
+              subject={subject}
+              boldness={boldness}
+              headline={headline}
+              width={vertical ? 900 : 1100}
+            />
+          </div>
+        }
+        bottom={
+          <Label
+            text={boldness < 0.5 ? "BEFORE" : "AFTER"}
+            color={boldness < 0.5 ? "#9A9AAA" : YELLOW}
+          />
+        }
+      />
       <AbsoluteFill style={{ background: "#FFFFFF", opacity: flash }} />
     </AbsoluteFill>
   );
@@ -254,7 +307,12 @@ const Bold: React.FC = () => {
   ];
   return (
     <AbsoluteFill
-      style={{ background: BG, justifyContent: "center", alignItems: "center" }}
+      style={{
+        ...(useVertical() ? verticalSafe : {}),
+        background: BG,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
     >
       {words.map(([word, color, delay]) => (
         <Slam key={word} delay={delay} color={color}>
@@ -277,8 +335,9 @@ const Slam: React.FC<{
     <div
       style={{
         fontFamily: anton,
-        fontSize: 170,
+        fontSize: useVertical() ? 190 : 170,
         lineHeight: 1.05,
+        textAlign: "center",
         color,
         opacity: frame >= delay ? 1 : 0,
         transform: `scale(${interpolate(s, [0, 1], [2.2, 1])})`,
@@ -298,40 +357,44 @@ const FEATURES = [
   "Revisions until you love it",
 ];
 
-const Pitch: React.FC = () => (
-  <AbsoluteFill
-    style={{
-      background: BG,
-      padding: "90px 140px",
-      gap: 50,
-      justifyContent: "center",
-    }}
-  >
-    <Line size={76}>
-      I design custom YouTube thumbnails
-      <br />
-      <span style={{ color: YELLOW }}>built to get clicks.</span>
-    </Line>
-    <div
+const Pitch: React.FC = () => {
+  const vertical = useVertical();
+  return (
+    <AbsoluteFill
       style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "34px 80px",
-        marginTop: 20,
+        background: BG,
+        padding: vertical ? verticalSafe.padding : "90px 140px",
+        gap: 50,
+        justifyContent: "center",
       }}
     >
-      {FEATURES.map((feature, i) => (
-        <Feature key={feature} text={feature} delay={80 + i * 25} />
-      ))}
-    </div>
-  </AbsoluteFill>
-);
+      <Line size={vertical ? 84 : 76}>
+        I design custom YouTube thumbnails
+        <br />
+        <span style={{ color: YELLOW }}>built to get clicks.</span>
+      </Line>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: vertical ? "1fr" : "1fr 1fr",
+          gap: "34px 80px",
+          marginTop: 20,
+        }}
+      >
+        {FEATURES.map((feature, i) => (
+          <Feature key={feature} text={feature} delay={80 + i * 25} />
+        ))}
+      </div>
+    </AbsoluteFill>
+  );
+};
 
 const Feature: React.FC<{ readonly text: string; readonly delay: number }> = ({
   text,
   delay,
 }) => {
   const enter = useEnter(delay);
+  const vertical = useVertical();
   return (
     <div
       style={{
@@ -364,7 +427,7 @@ const Feature: React.FC<{ readonly text: string; readonly delay: number }> = ({
         style={{
           fontFamily: inter,
           fontWeight: 600,
-          fontSize: 54,
+          fontSize: vertical ? 60 : 54,
           color: "#FFFFFF",
         }}
       >
@@ -377,20 +440,22 @@ const Feature: React.FC<{ readonly text: string; readonly delay: number }> = ({
 const Cta: React.FC = () => {
   const frame = useCurrentFrame();
   const button = useEnter(45);
+  const vertical = useVertical();
   // The button "gets pressed" when the voiceover says "Hit order".
   const press = interpolate(frame, [75, 80, 88], [1, 0.9, 1], clamp);
   const pulse = 1 + Math.sin(frame / 6) * 0.02 * button;
   return (
     <AbsoluteFill
       style={{
+        ...(vertical ? verticalSafe : {}),
         background: `radial-gradient(circle at 50% 60%, #2A1030, ${BG} 70%)`,
         justifyContent: "center",
         alignItems: "center",
         gap: 70,
       }}
     >
-      <Line size={88}>
-        Your next video{" "}
+      <Line size={vertical ? 84 : 88}>
+        Your next video{vertical ? <br /> : " "}
         <span style={{ color: YELLOW }}>deserves to be seen.</span>
       </Line>
       <div
